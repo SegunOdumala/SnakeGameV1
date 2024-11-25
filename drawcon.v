@@ -26,11 +26,9 @@ module drawcon(
     
     //image signals
     parameter BLK_SIZE_X = 32, BLK_SIZE_Y = 32;
-    parameter APPLE_SIZE_X = 50, APPLE_SIZE_Y = 50;
     parameter INFO_SIZE_X = 1408, INFO_SIZE_Y = 128;
     reg [17:0] infobar_addr = 0;
     wire [11:0] rom_pixel;
-    reg [13:0] addr;
     reg [5:0] i;
     reg placed;
     reg game_end;
@@ -87,33 +85,12 @@ module drawcon(
             end
             
             //apple
-            always@(posedge clk) begin
-                if (!rst) begin
-                    blk_r <= 4'b1111;
-                    blk_g <= 4'b1111;
-                    blk_b <= 4'b1111; 
-                    addr <= 0;
-                end
-                else begin
-                     if (!game_end && (curr_x > applepos_x) && (curr_y > applepos_y) && (curr_x < applepos_x+APPLE_SIZE_X-1) && (curr_y < applepos_y+APPLE_SIZE_Y-1)) begin
-                        placed = 1;
-                        blk_r <= 4'b1111;
-                        blk_g <= 4'b1111;
-                        blk_b <= 4'b1111; 
-                     end
-                     else begin
-                         blk_r <= rom_pixel[11:8];
-                         blk_g <= rom_pixel[7:4];
-                         blk_b <= rom_pixel[3:0];
-                         if (addr == (APPLE_SIZE_X*APPLE_SIZE_Y)-1)
-                     end
-                end    
-          //  if (!game_end && (curr_x > applepos_x) && (curr_y > applepos_y) && (curr_x < applepos_x+BLK_SIZE_X-1) && (curr_y < applepos_y+BLK_SIZE_Y-1))begin 
-             //   placed = 1;
-             //   blk_r <= 4'b1111;
-             //   blk_g <= 4'b1111;
-              //  blk_b <= 4'b1111; 
-          //  end
+            if (!game_end && (curr_x > applepos_x) && (curr_y > applepos_y) && (curr_x < applepos_x+BLK_SIZE_X-1) && (curr_y < applepos_y+BLK_SIZE_Y-1))begin 
+                placed = 1;
+                blk_r <= 4'b1111;
+                blk_g <= 4'b1111;
+                blk_b <= 4'b1111; 
+            end
             
             //head
             if (!game_end && (curr_x > snakepos_x[10:0]) && (curr_x < snakepos_x[10:0]+BLK_SIZE_X-1) && (curr_y > snakepos_y[10:0]) && (curr_y < snakepos_y[10:0]+BLK_SIZE_Y-1)) begin
