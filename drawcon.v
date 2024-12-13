@@ -8,6 +8,7 @@ module drawcon(
     input [5:0] length,
     input [10:0] applepos_x,
     input [10:0] applepos_y,
+    input [53:0] direction,
     input [10:0] curr_x,
     input [10:0] curr_y,
     input lose,
@@ -20,12 +21,18 @@ module drawcon(
 // Parameters
 parameter BLK_SIZE_X = 32, BLK_SIZE_Y = 32;
 parameter APPLE_SIZE_X = 32, APPLE_SIZE_Y = 32;
+parameter MAX_SEGMENTS = 23; // Max number of snake segments (252 bits / 11 bits per segment)
 
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
 reg [3:0] bg_r, bg_g, bg_b;
 reg [13:0] addr = 0; // Address for apple memory
 wire [11:0] rom_pixelA; // Output pixel from apple block memory
+reg [13:0] addrHEAD = 0; // Address for snake head
+reg [5:0] segment_index; // Tracks which body segment is being rendered
+wire [11:0] rom_pixelHEAD; // Output pixel for snake head
+reg [13:0] addrBODY = 0; 
+wire [11:0] rom_pixelBODY;  
 reg [5:0] i;
 reg placed;
 reg game_end;
@@ -34,23 +41,23 @@ reg game_end;
 always @* begin
     game_end = win || lose;
     if (!lose) begin
-        if (win) begin
+        if (win) begin // win GREEN
             bg_r = 4'b0000;
             bg_g = 4'b1111;
             bg_b = 4'b0000;
         end else begin
             if ((curr_x < 11'd16) || (curr_x > 11'd1424) || 
-                (curr_y < 11'd16) || (curr_y > 11'd880)) begin
+                (curr_y < 11'd16) || (curr_y > 11'd880)) begin  //border
                 bg_r = 4'b1111;
                 bg_g = 4'b1111;
                 bg_b = 4'b1111;
-            end else begin
+            end else begin  // Background (where grass should be)
                 bg_r = 4'b0000;
                 bg_g = 4'b0000;
                 bg_b = 4'b0000;
             end
         end
-    end else begin
+    end else begin  //loss RED
         bg_r = 4'b1111;
         bg_g = 4'b0000;
         bg_b = 4'b0000;
@@ -64,8 +71,12 @@ always @(posedge clk) begin
         blk_g <= 4'b0000;
         blk_b <= 4'b0000;
         addr <= 0;
+        addrHEAD <= 0;
+        segment_index <= 0;
         placed <= 0;
     end else begin
+        placed <= 0; // Reset placement flag for the new frame
+
         // Apple rendering
         if (!game_end && 
             (curr_x >= applepos_x) && (curr_x < applepos_x + APPLE_SIZE_X) &&
@@ -74,47 +85,48 @@ always @(posedge clk) begin
             blk_r <= rom_pixelA[11:8];
             blk_g <= rom_pixelA[7:4];
             blk_b <= rom_pixelA[3:0];
-            if (addr == (APPLE_SIZE_X * APPLE_SIZE_Y - 1)) begin
-                addr <= 0;
-            end else begin
-                addr <= addr + 1;
-            end
+            addr <= addr + 1;
         end
 
         // Snake head rendering
-        if (!game_end &&
+        else if (!game_end &&
             (curr_x >= snakepos_x[10:0]) && 
             (curr_x < snakepos_x[10:0] + BLK_SIZE_X) &&
             (curr_y >= snakepos_y[10:0]) && 
             (curr_y < snakepos_y[10:0] + BLK_SIZE_Y)) begin
             placed = 1;
-            blk_r <= 4'b1111;
-            blk_g <= 4'b0000;
-            blk_b <= 4'b0000;
-        end else begin
-            // Snake body rendering
-            for (i = 1; i < 22; i = i + 1) begin
-                if (i < length) begin
-                    if (!game_end &&
-                        (curr_x >= snakepos_x[11*i +: 11]) &&
-                        (curr_x < snakepos_x[11*i +: 11] + BLK_SIZE_X) &&
-                        (curr_y >= snakepos_y[11*i +: 11]) &&
-                        (curr_y < snakepos_y[11*i +: 11] + BLK_SIZE_Y)) begin
-                        placed = 1;
-                        blk_r <= 4'b0000;
-                        blk_g <= 4'b1111;
-                        blk_b <= 4'b0000;
-                    end
-                end
-            end
+            blk_r <= rom_pixelHEAD[11:8];
+            blk_g <= rom_pixelHEAD[7:4];
+            blk_b <= rom_pixelHEAD[3:0];
+            addrHEAD <= addrHEAD + 1;
         end
+// Snake body rendering
+else begin
+    for (i = 1; i < length && i < MAX_SEGMENTS; i = i + 1) begin
+        if (!game_end &&
+            (curr_x >= snakepos_x[11*i +: 11]) &&
+            (curr_x < snakepos_x[11*i +: 11] + BLK_SIZE_X) &&
+            (curr_y >= snakepos_y[11*i +: 11]) &&
+            (curr_y < snakepos_y[11*i +: 11] + BLK_SIZE_Y)) begin
+            placed = 1;
+
+            // Calculate address within the body segment memory
+            addrBODY <= ((curr_x - snakepos_x[11*i +: 11]) + 
+                         (curr_y - snakepos_y[11*i +: 11]) * BLK_SIZE_X);
+
+            // Assign color from memory
+            blk_r <= rom_pixelBODY[11:8];
+            blk_g <= rom_pixelBODY[7:4];
+            blk_b <= rom_pixelBODY[3:0];
+        end
+    end
+end
 
         if (!placed && !game_end) begin
             blk_r <= 4'b0000;
             blk_g <= 4'b0000;
             blk_b <= 4'b0000;
         end
-        placed <= 0;
     end
 end
 
@@ -130,6 +142,20 @@ blk_mem_gen_1 apple_inst(
     .douta(rom_pixelA)
 );
 
-endmodule
+// Memory instance for SnakeHead
+blk_mem_gen_0 snakehead_inst(
+    .clka(clk),
+    .addra(addrHEAD),
+    .douta(rom_pixelHEAD)
+);
 
+// Memory instance for SnakeBody
+blk_mem_gen_2 snakebody_inst(
+    .clka(clk),
+    .addra(addrBODY),
+    .douta(rom_pixelBODY)
+);
+
+
+endmodule
 
