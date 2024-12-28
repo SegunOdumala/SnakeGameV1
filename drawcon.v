@@ -22,6 +22,19 @@ module drawcon(
 parameter BLK_SIZE_X = 32, BLK_SIZE_Y = 32;
 parameter APPLE_SIZE_X = 32, APPLE_SIZE_Y = 32;
 parameter MAX_SEGMENTS = 23; // Max number of snake segments (252 bits / 11 bits per segment)
+// Parameters for image sizes and screen centering
+parameter SCREEN_WIDTH = 1440;
+parameter SCREEN_HEIGHT = 900;
+parameter GAMEOVER_WIDTH = 707;
+parameter GAMEOVER_HEIGHT = 500;
+parameter WINNER_WIDTH = 789;
+parameter WINNER_HEIGHT = 450;
+
+// Image offsets for centering
+parameter GAMEOVER_X_OFFSET = (SCREEN_WIDTH - GAMEOVER_WIDTH) / 2; // Centered X position
+parameter GAMEOVER_Y_OFFSET = (SCREEN_HEIGHT - GAMEOVER_HEIGHT) / 2; // Centered Y position
+parameter WINNER_X_OFFSET = (SCREEN_WIDTH - WINNER_WIDTH) / 2; // Centered X position
+parameter WINNER_Y_OFFSET = (SCREEN_HEIGHT - WINNER_HEIGHT) / 2; // Centered Y position
 
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
@@ -34,39 +47,61 @@ reg [13:0] addrBODY = 0;
 wire [11:0] rom_pixelBODY;  
 reg [13:0] addrGRASS;
 wire [11:0] rom_pixelGRASS;  // Pixel data for grass
+reg [13:0] addr_gameover, addr_winner; // Wires for image pixels
+wire [11:0] rom_pixel_gameover, rom_pixel_winner; // Wires for image pixels
 reg [5:0] i;
 reg placed;
 reg game_end; // Single driver for game_end
 
-// Background color logic
 always @* begin
-    // Determine if the game has ended
     game_end = win || lose;
 
-    // Background color logic
     if (!lose) begin
-        if (win) begin // Win screen (Green)
-            bg_r = 4'b0000;
-            bg_g = 4'b1111;
-            bg_b = 4'b0000;
+        if (win) begin // Win screen logic
+            if ((curr_x >= WINNER_X_OFFSET) && (curr_x < WINNER_X_OFFSET + WINNER_WIDTH) &&
+                (curr_y >= WINNER_Y_OFFSET) && (curr_y < WINNER_Y_OFFSET + WINNER_HEIGHT)) begin
+                // Calculate memory address for the winner image
+                addr_winner = ((curr_x - WINNER_X_OFFSET) + 
+                               (curr_y - WINNER_Y_OFFSET) * WINNER_WIDTH);
+                bg_r = rom_pixel_winner[11:8];
+                bg_g = rom_pixel_winner[7:4];
+                bg_b = rom_pixel_winner[3:0];
+            end else begin
+                // Render normal background
+                bg_r = rom_pixelGRASS[11:8];
+                bg_g = rom_pixelGRASS[7:4];
+                bg_b = rom_pixelGRASS[3:0];
+            end
         end else begin
             if ((curr_x < 11'd16) || (curr_x > 11'd1424) || 
                 (curr_y < 11'd16) || (curr_y > 11'd880)) begin // Border (White)
                 bg_r = 4'b1111;
                 bg_g = 4'b1111;
-                bg_b = 4'b1011;
-            end else begin // Background (Grass)
+                bg_b = 4'b1111;
+            end else begin // Normal background (Grass)
                 bg_r = rom_pixelGRASS[11:8];
                 bg_g = rom_pixelGRASS[7:4];
                 bg_b = rom_pixelGRASS[3:0];
             end
         end
-    end else begin // Loss screen (Red)
-        bg_r = 4'b1111;
-        bg_g = 4'b0000;
-        bg_b = 4'b0000;
+    end else begin // Game Over screen logic
+        if ((curr_x >= GAMEOVER_X_OFFSET) && (curr_x < GAMEOVER_X_OFFSET + GAMEOVER_WIDTH) &&
+            (curr_y >= GAMEOVER_Y_OFFSET) && (curr_y < GAMEOVER_Y_OFFSET + GAMEOVER_HEIGHT)) begin
+            // Calculate memory address for the game over image
+            addr_gameover = ((curr_x - GAMEOVER_X_OFFSET) + 
+                             (curr_y - GAMEOVER_Y_OFFSET) * GAMEOVER_WIDTH);
+            bg_r = rom_pixel_gameover[11:8];
+            bg_g = rom_pixel_gameover[7:4];
+            bg_b = rom_pixel_gameover[3:0];
+        end else begin
+            // Background color for game over screen (e.g., black)
+            bg_r = 4'b0000;
+            bg_g = 4'b0000;
+            bg_b = 4'b0000;
+        end
     end
 end
+
 
 // Main rendering logic
 always @(posedge clk) begin
@@ -197,6 +232,18 @@ blk_mem_gen_3 grass_inst (
     .clka(clk),
     .addra(addrGRASS),
     .douta(rom_pixelGRASS)
+);
+
+blk_mem_gen_4 gameover_inst (
+    .clka(clk),
+    .addra(addr_gameover),
+    .douta(rom_pixel_gameover)
+);
+
+blk_mem_gen_5 winner_inst (
+    .clka(clk),
+    .addra(addr_winner),
+    .douta(rom_pixel_winner)
 );
 
 endmodule
