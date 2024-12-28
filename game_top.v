@@ -128,14 +128,14 @@ module game_top(
                         direction[1:0] = direction[1:0];
                     end
                 end
-                4'b1000: begin // turn up
+                4'b0001: begin // turn up
                     if(direction[1:0] != 2'd1) begin
                         direction[1:0] = 2'd3;
                     end else begin
                         direction[1:0] = direction[1:0];
                     end
                 end
-                4'b0001: begin // turn down
+                4'b1000: begin // turn down
                     if(direction[1:0] != 2'd3) begin
                         direction[1:0] = 2'd1;
                     end else begin
@@ -147,37 +147,44 @@ module game_top(
                 end
             endcase
             
-            //looped movement controller
-            for (i=0; i < 22; i = i+1) begin
-                if(direction[2*i +: 2] == 2'd0)begin 
-                    if (snakepos_x[11*i +: 11] < (11'd1424-11'd64+11'd1)) begin  //right
-                        snakepos_x[11*i +: 11] = snakepos_x[11*i +: 11] + 11'd32;
-                    end else begin
-                        snakepos_x[11*i +: 11] = 11'd16;
-                    end   
-                end
-                if(direction[2*i +: 2] == 2'd1)begin
-                    if (snakepos_y[11*i +: 11] > (11'd144+11'd32-11'd1)) begin    //down
-                        snakepos_y[11*i +: 11] = snakepos_y[11*i +: 11] - 11'd32;
-                    end else begin
-                        snakepos_y[11*i +: 11] = 11'd880 - 11'd32;
-                    end
-                end
-                if (direction[2*i +: 2] == 2'd2) begin 
-                    if (snakepos_x[11*i +: 11] > (11'd16+11'd32-11'd1)) begin  //left
-                        snakepos_x[11*i +: 11] = snakepos_x[11*i +: 11] - 11'd32;
-                    end else begin
-                        snakepos_x[11*i +: 11] = 11'd1424 - 11'd32;
-                    end
-                end
-                if(direction[2*i +: 2] == 2'd3) begin 
-                    if (snakepos_y[11*i +: 11] < (11'd880-11'd64+11'd1)) begin  //up
-                        snakepos_y[11*i +: 11] = snakepos_y[11*i +: 11] + 11'd32;
-                    end else begin
-                        snakepos_y[11*i +: 11] = 11'd144;
-                    end
-                end
-            end
+// Looped movement controller
+for (i = 0; i < 22; i = i + 1) begin
+    // Moving right
+    if (direction[2*i +: 2] == 2'd0) begin
+        if (snakepos_x[11*i +: 11] < (11'd1424 - 11'd32)) begin // Within right boundary
+            snakepos_x[11*i +: 11] = snakepos_x[11*i +: 11] + 11'd32;
+        end else begin // Wrap to the left boundary
+            snakepos_x[11*i +: 11] = 11'd16;
+        end
+    end
+
+    // Moving down
+    if (direction[2*i +: 2] == 2'd1) begin
+        if (snakepos_y[11*i +: 11] < (11'd880 - 11'd32)) begin // Within bottom boundary
+            snakepos_y[11*i +: 11] = snakepos_y[11*i +: 11] + 11'd32;
+        end else begin // Wrap to the top boundary
+            snakepos_y[11*i +: 11] = 11'd16;
+        end
+    end
+
+    // Moving left
+    if (direction[2*i +: 2] == 2'd2) begin
+        if (snakepos_x[11*i +: 11] > (11'd16)) begin // Within left boundary
+            snakepos_x[11*i +: 11] = snakepos_x[11*i +: 11] - 11'd32;
+        end else begin // Wrap to the right boundary
+            snakepos_x[11*i +: 11] = 11'd1424 - 11'd32;
+        end
+    end
+
+    // Moving up
+    if (direction[2*i +: 2] == 2'd3) begin
+        if (snakepos_y[11*i +: 11] > (11'd16)) begin // Within top boundary
+            snakepos_y[11*i +: 11] = snakepos_y[11*i +: 11] - 11'd32;
+        end else begin // Wrap to the bottom boundary
+            snakepos_y[11*i +: 11] = 11'd880 - 11'd32;
+        end
+    end
+end
         end
     end 
     
