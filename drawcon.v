@@ -83,45 +83,55 @@ always @(posedge clk) begin
     end else begin
         placed <= 0; // Reset placement flag for the new frame
 
-        // Apple rendering
-        if (!game_end && 
-            (curr_x >= applepos_x) && (curr_x < applepos_x + APPLE_SIZE_X) &&
-            (curr_y >= applepos_y) && (curr_y < applepos_y + APPLE_SIZE_Y)) begin
-            placed <= 1;
-            blk_r <= rom_pixelA[11:8];
-            blk_g <= rom_pixelA[7:4];
-            blk_b <= rom_pixelA[3:0];
-            addr <= addr + 1;
+// Apple rendering
+if (!game_end && 
+    (curr_x >= applepos_x) && (curr_x < applepos_x + APPLE_SIZE_X) &&
+    (curr_y >= applepos_y) && (curr_y < applepos_y + APPLE_SIZE_Y)) begin
+    placed <= 1;
 
-            // Replace black pixels with grass
-            if (rom_pixelA == 12'h000) begin
-                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
-                blk_r <= rom_pixelGRASS[11:8];
-                blk_g <= rom_pixelGRASS[7:4];
-                blk_b <= rom_pixelGRASS[3:0];
-            end
-        end
+    // Dynamically calculate address for the current pixel
+    addr <= ((curr_x - applepos_x) + 
+             (curr_y - applepos_y) * APPLE_SIZE_X);
 
-        // Snake head rendering
-        else if (!game_end &&
-            (curr_x >= snakepos_x[10:0]) && 
-            (curr_x < snakepos_x[10:0] + BLK_SIZE_X) &&
-            (curr_y >= snakepos_y[10:0]) && 
-            (curr_y < snakepos_y[10:0] + BLK_SIZE_Y)) begin
-            placed <= 1;
-            blk_r <= rom_pixelHEAD[11:8];
-            blk_g <= rom_pixelHEAD[7:4];
-            blk_b <= rom_pixelHEAD[3:0];
-            addrHEAD <= addrHEAD + 1;
+    // Fetch and render the pixel
+    if (rom_pixelA != 12'h000) begin // Render non-black pixels
+        blk_r <= rom_pixelA[11:8];
+        blk_g <= rom_pixelA[7:4];
+        blk_b <= rom_pixelA[3:0];
+    end else begin // Render grass for black pixels
+        addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+        blk_r <= rom_pixelGRASS[11:8];
+        blk_g <= rom_pixelGRASS[7:4];
+        blk_b <= rom_pixelGRASS[3:0];
+    end
+end
 
-            // Replace black pixels with grass
-            if (rom_pixelHEAD == 12'h000) begin
-                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
-                blk_r <= rom_pixelGRASS[11:8];
-                blk_g <= rom_pixelGRASS[7:4];
-                blk_b <= rom_pixelGRASS[3:0];
-            end
-        end
+
+// Snake head rendering
+else if (!game_end &&
+    (curr_x >= snakepos_x[10:0]) && 
+    (curr_x < snakepos_x[10:0] + BLK_SIZE_X) &&
+    (curr_y >= snakepos_y[10:0]) && 
+    (curr_y < snakepos_y[10:0] + BLK_SIZE_Y)) begin
+    placed <= 1;
+
+    // Dynamically calculate address for the current pixel
+    addrHEAD <= ((curr_x - snakepos_x[10:0]) + 
+                 (curr_y - snakepos_y[10:0]) * BLK_SIZE_X);
+
+    // Fetch and render the pixel
+    if (rom_pixelHEAD != 12'h000) begin // Render non-black pixels
+        blk_r <= rom_pixelHEAD[11:8];
+        blk_g <= rom_pixelHEAD[7:4];
+        blk_b <= rom_pixelHEAD[3:0];
+    end else begin // Render grass for black pixels
+        addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+        blk_r <= rom_pixelGRASS[11:8];
+        blk_g <= rom_pixelGRASS[7:4];
+        blk_b <= rom_pixelGRASS[3:0];
+    end
+end
+
 
 // Snake body rendering
 else begin
