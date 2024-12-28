@@ -36,9 +36,39 @@ reg [13:0] addrGRASS;
 wire [11:0] rom_pixelGRASS;  // Pixel data for grass
 reg [5:0] i;
 reg placed;
-reg game_end;
+reg game_end; // Single driver for game_end
 
-// Main rendering logic (single always block to avoid conflicts)
+// Background color logic
+always @* begin
+    // Determine if the game has ended
+    game_end = win || lose;
+
+    // Background color logic
+    if (!lose) begin
+        if (win) begin // Win screen (Green)
+            bg_r = 4'b0000;
+            bg_g = 4'b1111;
+            bg_b = 4'b0000;
+        end else begin
+            if ((curr_x < 11'd16) || (curr_x > 11'd1424) || 
+                (curr_y < 11'd16) || (curr_y > 11'd880)) begin // Border (White)
+                bg_r = 4'b1111;
+                bg_g = 4'b1111;
+                bg_b = 4'b1011;
+            end else begin // Background (Grass)
+                bg_r = rom_pixelGRASS[11:8];
+                bg_g = rom_pixelGRASS[7:4];
+                bg_b = rom_pixelGRASS[3:0];
+            end
+        end
+    end else begin // Loss screen (Red)
+        bg_r = 4'b1111;
+        bg_g = 4'b0000;
+        bg_b = 4'b0000;
+    end
+end
+
+// Main rendering logic
 always @(posedge clk) begin
     if (!rst) begin
         // Reset all signals
@@ -53,51 +83,45 @@ always @(posedge clk) begin
     end else begin
         placed <= 0; // Reset placement flag for the new frame
 
-        // Game end logic
-        game_end <= win || lose;
+        // Apple rendering
+        if (!game_end && 
+            (curr_x >= applepos_x) && (curr_x < applepos_x + APPLE_SIZE_X) &&
+            (curr_y >= applepos_y) && (curr_y < applepos_y + APPLE_SIZE_Y)) begin
+            placed <= 1;
+            blk_r <= rom_pixelA[11:8];
+            blk_g <= rom_pixelA[7:4];
+            blk_b <= rom_pixelA[3:0];
+            addr <= addr + 1;
 
-// Apple rendering
-if (!game_end && 
-    (curr_x >= applepos_x) && (curr_x < applepos_x + APPLE_SIZE_X) &&
-    (curr_y >= applepos_y) && (curr_y < applepos_y + APPLE_SIZE_Y)) begin
-    placed <= 1;
-    blk_r <= rom_pixelA[11:8];
-    blk_g <= rom_pixelA[7:4];
-    blk_b <= rom_pixelA[3:0];
-    addr <= addr + 1;
+            // Replace black pixels with grass
+            if (rom_pixelA == 12'h000) begin
+                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+                blk_r <= rom_pixelGRASS[11:8];
+                blk_g <= rom_pixelGRASS[7:4];
+                blk_b <= rom_pixelGRASS[3:0];
+            end
+        end
 
-    // Replace black pixels with grass
-    if (rom_pixelA == 12'h000) begin
-        addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
-        blk_r <= rom_pixelGRASS[11:8];
-        blk_g <= rom_pixelGRASS[7:4];
-        blk_b <= rom_pixelGRASS[3:0];
-    end
-end
+        // Snake head rendering
+        else if (!game_end &&
+            (curr_x >= snakepos_x[10:0]) && 
+            (curr_x < snakepos_x[10:0] + BLK_SIZE_X) &&
+            (curr_y >= snakepos_y[10:0]) && 
+            (curr_y < snakepos_y[10:0] + BLK_SIZE_Y)) begin
+            placed <= 1;
+            blk_r <= rom_pixelHEAD[11:8];
+            blk_g <= rom_pixelHEAD[7:4];
+            blk_b <= rom_pixelHEAD[3:0];
+            addrHEAD <= addrHEAD + 1;
 
-
-// Snake head rendering
-else if (!game_end &&
-    (curr_x >= snakepos_x[10:0]) && 
-    (curr_x < snakepos_x[10:0] + BLK_SIZE_X) &&
-    (curr_y >= snakepos_y[10:0]) && 
-    (curr_y < snakepos_y[10:0] + BLK_SIZE_Y)) begin
-    placed <= 1;
-    blk_r <= rom_pixelHEAD[11:8];
-    blk_g <= rom_pixelHEAD[7:4];
-    blk_b <= rom_pixelHEAD[3:0];
-    addrHEAD <= addrHEAD + 1;
-
-    // Replace black pixels with grass
-    if (rom_pixelHEAD == 12'h000) begin
-        addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
-        blk_r <= rom_pixelGRASS[11:8];
-        blk_g <= rom_pixelGRASS[7:4];
-        blk_b <= rom_pixelGRASS[3:0];
-    end
-end
-
-
+            // Replace black pixels with grass
+            if (rom_pixelHEAD == 12'h000) begin
+                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+                blk_r <= rom_pixelGRASS[11:8];
+                blk_g <= rom_pixelGRASS[7:4];
+                blk_b <= rom_pixelGRASS[3:0];
+            end
+        end
 
 // Snake body rendering
 else begin
@@ -124,8 +148,9 @@ else begin
     end
 end
 
+
         // Render grass background if nothing else is placed
-        if (!placed && !game_end) begin
+        if (!placed) begin
             addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
             blk_r <= rom_pixelGRASS[11:8];
             blk_g <= rom_pixelGRASS[7:4];
@@ -135,9 +160,9 @@ end
 end
 
 // Output assignments
-assign draw_r = blk_r;
-assign draw_g = blk_g;
-assign draw_b = blk_b;
+assign draw_r = (blk_r != 4'b0000) ? blk_r : bg_r;
+assign draw_g = (blk_g != 4'b0000) ? blk_g : bg_g;
+assign draw_b = (blk_b != 4'b0000) ? blk_b : bg_b;
 
 // Memory instances
 blk_mem_gen_1 apple_inst (
