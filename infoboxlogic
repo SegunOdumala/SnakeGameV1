@@ -1,0 +1,37 @@
+// Parameters for the Info Box
+parameter INFO_BOX_HEIGHT = 100; // Height of the info box
+parameter INFO_BG_R = 4'hF; // Unique color: Orange background
+parameter INFO_BG_G = 4'h8;
+parameter INFO_BG_B = 4'h0;
+
+always @* begin
+    game_end = win || lose;
+
+    if (!lose) begin
+        if (curr_y < INFO_BOX_HEIGHT) begin // Info Box Logic
+            // Background color for the info box
+            bg_r = INFO_BG_R;
+            bg_g = INFO_BG_G;
+            bg_b = INFO_BG_B;
+
+            // Display game name and IDs
+            if ((curr_x >= 50 && curr_x < 200) && (curr_y >= 20 && curr_y < 40)) begin
+                // Example hardcoded "Game Name" pixel range
+                bg_r = 4'h0; // Blue R value
+                bg_g = 4'h0; // Blue G value
+                bg_b = 4'hF; // Blue B value
+            end else if ((curr_x >= 250 && curr_x < 400) && (curr_y >= 60 && curr_y < 80)) begin
+                // Example hardcoded "Group IDs" pixel range
+                bg_r = 4'h0;
+                bg_g = 4'h0;
+                bg_b = 4'hF;
+            end
+        end else if (win) begin // Win screen logic
+            ...
+        end else if (lose) begin // Game Over screen logic
+            ...
+        end else begin // Render game elements
+            ...
+        end
+    end
+end
