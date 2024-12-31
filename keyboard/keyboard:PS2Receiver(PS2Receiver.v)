@@ -24,7 +24,12 @@ module PS2Receiver(
     input clk,
     input kclk,
     input kdata,
-    output [31:0] keycodeout
+    output [31:0] keycodeout,
+//Chinua changes 
+    output reg up,     //Direction signal: UP
+    output reg down,     //Direction signal: DOWN    
+    output reg left,     //Direction signal: LEFT
+    output reg right     //Direction signal: RIGHT
     );
     
     
@@ -39,6 +44,10 @@ module PS2Receiver(
         keycode[31:0]<=0'h00000000;
         cnt<=4'b0000;
         flag<=1'b0;
+        up <= 0;    
+        down <= 0;    
+        left <= 0;
+        right <= 0;
     end
     
 debouncer debounce(
@@ -78,7 +87,26 @@ always @(posedge flag)begin
         dataprev<=datacur;
     end
 end
-    
-assign keycodeout=keycode;
+
+// Case statement to map scancodes to directional signals
+    always @(keycode) begin
+        // Reset all directional signals
+        up <= 0;
+        down <= 0;
+        left <= 0;
+        right <= 0;
+
+        case (keycode[7:0])  // Checking only the lower byte (the actual scancode)
+            8'h1D: up <= 1;    // W key - UP
+            8'h1C: left <= 1;  // A key - LEFT
+            8'h1B: down <= 1;  // S key - DOWN
+            8'h23: right <= 1; // D key - RIGHT
+            default: ;         // No change for other keys
+        endcase
+    end
+
+    assign keycodeout=keycode;
+
+
     
 endmodule
