@@ -4,6 +4,10 @@ module game_top(
     input clk,
     input rst,
     input [4:0] btn,
+    input CLK100MHZ,
+    input PS2_CLK,
+    input PS2_DATA,
+    output UART_TXD,
     output [3:0] pix_r,
     output [3:0] pix_g,
     output [3:0] pix_b,
@@ -19,6 +23,7 @@ module game_top(
     wire [3:0] draw_b;
     wire [10:0] curr_x;
     wire [10:0] curr_y;
+    wire kb_up, kb_down, kb_left, kb_right;
 
     // Apple wires & registers
     reg new;
@@ -40,6 +45,9 @@ module game_top(
     wire [5:0] points;
     wire win;
     wire pixclk;
+    reg CLK50MHZ=0;    
+    wire [31:0]keycode;
+
 
     // Snake registers
     reg [252:0] snakepos_x, snakepos_y;
@@ -71,6 +79,7 @@ module game_top(
 
     // Game clock generation
     always @(posedge clk) begin
+    CLK50MHZ<=~CLK50MHZ;
         if (!rst) begin
             clk_div <= 0;
             game_clk <= 0;
@@ -83,6 +92,7 @@ module game_top(
             end
         end
     end
+    
 
     // Direction choice and block movement
     always @(posedge game_clk) begin
@@ -128,7 +138,19 @@ module game_top(
             for (i = 22; i > 0; i = i - 1) begin
                 direction[2*i +: 2] = direction[2*(i-1) +: 2];
             end
-
+            
+        //----------------------------------------
+        // 1) Keyboard-based direction
+        //----------------------------------------
+        // We'll interpret W=up, A=left, S=down, D=right
+        // (from your scancode logic)
+        if (kb_left  == 1 && direction[1:0] != 2'd0) direction[1:0] = 2'd2; 
+        if (kb_right == 1 && direction[1:0] != 2'd2) direction[1:0] = 2'd0;
+        if (kb_up    == 1 && direction[1:0] != 2'd1) direction[1:0] = 2'd3;
+        if (kb_down  == 1 && direction[1:0] != 2'd3) direction[1:0] = 2'd1;
+        //----------------------------------------
+        // 2) Button-based direction 
+        //------------------------------
             case (btn[4:1])
                 4'b0010: if (direction[1:0] != 2'd0) direction[1:0] = 2'd2; // Turn left
                 4'b0100: if (direction[1:0] != 2'd2) direction[1:0] = 2'd0; // Turn right
@@ -235,4 +257,16 @@ module game_top(
         .hsync(hsync), 
         .vsync(vsync)
     ); 
+    
+  PS2Receiver keyboard (
+    .clk(CLK50MHZ),
+    .kclk(PS2_CLK),
+    .kdata(PS2_DATA),
+    .keycodeout(keycode[31:0]),
+    .up(kb_up),
+    .down(kb_down),
+    .left(kb_left),
+    .right(kb_right)
+  );
+
 endmodule

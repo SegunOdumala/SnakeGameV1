@@ -8,6 +8,8 @@ module drawcon(
     input [5:0] length,
     input [10:0] applepos_x,
     input [10:0] applepos_y,
+    input [10:0] wallpos_x,
+    input [10:0] wallpos_y,
     input [53:0] direction,
     input [10:0] curr_x,
     input [10:0] curr_y,
@@ -21,6 +23,7 @@ module drawcon(
 // Parameters
 parameter BLK_SIZE_X = 32, BLK_SIZE_Y = 32;
 parameter APPLE_SIZE_X = 32, APPLE_SIZE_Y = 32;
+parameter WALL_SIZE_X = 32, WALL_SIZE_Y = 32;
 parameter MAX_SEGMENTS = 23; // Max number of snake segments (252 bits / 11 bits per segment)
 // Parameters for image sizes and screen centering
 parameter SCREEN_WIDTH = 1440;
@@ -47,60 +50,39 @@ reg [13:0] addrBODY = 0;
 wire [11:0] rom_pixelBODY;  
 reg [13:0] addrGRASS;
 wire [11:0] rom_pixelGRASS;  // Pixel data for grass
+reg [13:0] addrWALL;
+wire [11:0] rom_pixelWALL;  // Pixel data for grass
 reg [13:0] addr_gameover, addr_winner; // Wires for image pixels
 wire [11:0] rom_pixel_gameover, rom_pixel_winner; // Wires for image pixels
 reg [5:0] i;
 reg placed;
 reg game_end; // Single driver for game_end
 
-always @* begin
-    game_end = win || lose;
-
-    if (!lose) begin
-        if (win) begin // Win screen logic
-            if ((curr_x >= WINNER_X_OFFSET) && (curr_x < WINNER_X_OFFSET + WINNER_WIDTH) &&
-                (curr_y >= WINNER_Y_OFFSET) && (curr_y < WINNER_Y_OFFSET + WINNER_HEIGHT)) begin
-                // Calculate memory address for the winner image
-                addr_winner = ((curr_x - WINNER_X_OFFSET) + 
-                               (curr_y - WINNER_Y_OFFSET) * WINNER_WIDTH);
-                bg_r = rom_pixel_winner[11:8];
-                bg_g = rom_pixel_winner[7:4];
-                bg_b = rom_pixel_winner[3:0];
+    //background colour
+    always@* begin
+        game_end = win || lose;
+        if(!lose) begin
+            if(win) begin
+                bg_r <= 4'b0000;
+                bg_g <= 4'b1111;
+                bg_b <= 4'b0000;
             end else begin
-                // Render normal background
-                bg_r = rom_pixelGRASS[11:8];
-                bg_g = rom_pixelGRASS[7:4];
-                bg_b = rom_pixelGRASS[3:0];
+                if ((curr_x < 11'd16) || (curr_x > 11'd1424) || (curr_y < 11'd16) || (curr_y > 11'd880)) begin
+                    bg_r <= 4'b1111;
+                    bg_g <= 4'b1111;
+                    bg_b <= 4'b1111;
+                end else begin
+                    bg_r <= 4'b0000;
+                    bg_g <= 4'b0000;
+                    bg_b <= 4'b0000;
+                end
             end
         end else begin
-            if ((curr_x < 11'd16) || (curr_x > 11'd1424) || 
-                (curr_y < 11'd16) || (curr_y > 11'd880)) begin // Border (White)
-                bg_r = 4'b1111;
-                bg_g = 4'b1111;
-                bg_b = 4'b1111;
-            end else begin // Normal background (Grass)
-                bg_r = rom_pixelGRASS[11:8];
-                bg_g = rom_pixelGRASS[7:4];
-                bg_b = rom_pixelGRASS[3:0];
-            end
-        end
-    end else begin // Game Over screen logic
-        if ((curr_x >= GAMEOVER_X_OFFSET) && (curr_x < GAMEOVER_X_OFFSET + GAMEOVER_WIDTH) &&
-            (curr_y >= GAMEOVER_Y_OFFSET) && (curr_y < GAMEOVER_Y_OFFSET + GAMEOVER_HEIGHT)) begin
-            // Calculate memory address for the game over image
-            addr_gameover = ((curr_x - GAMEOVER_X_OFFSET) + 
-                             (curr_y - GAMEOVER_Y_OFFSET) * GAMEOVER_WIDTH);
-            bg_r = rom_pixel_gameover[11:8];
-            bg_g = rom_pixel_gameover[7:4];
-            bg_b = rom_pixel_gameover[3:0];
-        end else begin
-            // Background color for game over screen (e.g., black)
-            bg_r = 4'b0000;
-            bg_g = 4'b0000;
-            bg_b = 4'b0000;
+            bg_r <= 4'b1111;
+            bg_g <= 4'b0000;
+            bg_b <= 4'b0000;
         end
     end
-end
 
 
 // Main rendering logic
@@ -141,6 +123,23 @@ if (!game_end &&
     end
 end
 
+// Wall rendering
+if (!game_end && 
+    (curr_x >= wallpos_x) && (curr_x < wallpos_x + WALL_SIZE_X) &&
+    (curr_y >= wallpos_y) && (curr_y < wallpos_y + WALL_SIZE_Y)) begin
+    placed <= 1;
+
+    // Dynamically calculate address for the current pixel
+    addrWALL <= ((curr_x - wallpos_x) + 
+             (curr_y - wallpos_y) * WALL_SIZE_X);
+
+    // Fetch and render the pixel
+    if (rom_pixelWALL != 12'h000) begin // Render non-black pixels
+        blk_r <= rom_pixelWALL[11:8];
+        blk_g <= rom_pixelWALL[7:4];
+        blk_b <= rom_pixelWALL[3:0];
+    end 
+end
 
 // Snake head rendering
 else if (!game_end &&
@@ -246,6 +245,11 @@ blk_mem_gen_5 winner_inst (
     .douta(rom_pixel_winner)
 );
 
-endmodule
+blk_mem_gen_6 wall_inst (
+    .clka(clk),
+    .addra(addrWALL),
+    .douta(rom_pixelWALL)
+);
 
+endmodule
 
