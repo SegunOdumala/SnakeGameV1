@@ -32,12 +32,17 @@ parameter GAMEOVER_WIDTH = 707;
 parameter GAMEOVER_HEIGHT = 500;
 parameter WINNER_WIDTH = 789;
 parameter WINNER_HEIGHT = 450;
+parameter CREDITS_WIDTH = 500;
+parameter CREDITS_HEIGHT = 100;
 
 // Image offsets for centering
 parameter GAMEOVER_X_OFFSET = (SCREEN_WIDTH - GAMEOVER_WIDTH) / 2; // Centered X position
 parameter GAMEOVER_Y_OFFSET = (SCREEN_HEIGHT - GAMEOVER_HEIGHT) / 2; // Centered Y position
 parameter WINNER_X_OFFSET = (SCREEN_WIDTH - WINNER_WIDTH) / 2; // Centered X position
 parameter WINNER_Y_OFFSET = (SCREEN_HEIGHT - WINNER_HEIGHT) / 2; // Centered Y position
+// Offset for Credits image at the bottom left
+parameter CREDITS_X_OFFSET = 0; // Bottom-left corner, X = 0
+parameter CREDITS_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
 
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
@@ -52,6 +57,8 @@ reg [13:0] addrGRASS;
 wire [11:0] rom_pixelGRASS;  // Pixel data for grass
 reg [13:0] addrWALL;
 wire [11:0] rom_pixelWALL;  // Pixel data for grass
+reg [15:0] addrCredits;
+wire [11:0] rom_pixelCredits;  // Pixel data for image at bottom left of the screen
 reg [13:0] addr_gameover, addr_winner; // Wires for image pixels
 wire [11:0] rom_pixel_gameover, rom_pixel_winner; // Wires for image pixels
 reg [5:0] i;
@@ -60,6 +67,11 @@ reg game_end; // Single driver for game_end
 
     //background colour
     always@* begin
+        if ((curr_x < 11'd25) || (curr_x > 11'd525) || (curr_y < 11'd1) || (curr_y > 11'd101)) begin
+             bg_r <= rom_pixelCredits[11:8];
+             bg_g <= rom_pixelCredits[7:4];
+             bg_b <= rom_pixelCredits[3:0];
+        end
         game_end = win || lose;
         if(!lose) begin
             if(win) begin
@@ -190,8 +202,28 @@ else begin
             end
         end
     end
-end
+end   
+               // Credits image rendering
+        if ((curr_x >= CREDITS_X_OFFSET) && (curr_x < CREDITS_X_OFFSET + CREDITS_WIDTH) &&
+            (curr_y >= CREDITS_Y_OFFSET) && (curr_y < CREDITS_Y_OFFSET + CREDITS_HEIGHT)) begin
+            placed <= 1;
 
+            // Dynamically calculate address for the current pixel
+            addrCredits <= ((curr_x - CREDITS_X_OFFSET) + 
+                           (curr_y - CREDITS_Y_OFFSET) * CREDITS_WIDTH);
+
+            // Fetch and render the pixel
+            if (rom_pixelCredits != 12'h000) begin // Render non-black pixels
+                blk_r <= rom_pixelCredits[11:8];
+                blk_g <= rom_pixelCredits[7:4];
+                blk_b <= rom_pixelCredits[3:0];
+            end else begin // Render grass for black pixels
+                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+                blk_r <= rom_pixelGRASS[11:8];
+                blk_g <= rom_pixelGRASS[7:4];
+                blk_b <= rom_pixelGRASS[3:0];
+            end
+        end
 
         // Render grass background if nothing else is placed
         if (!placed) begin
@@ -249,6 +281,12 @@ blk_mem_gen_6 wall_inst (
     .clka(clk),
     .addra(addrWALL),
     .douta(rom_pixelWALL)
+);
+
+blk_mem_gen_7 credits_inst (
+    .clka(clk),
+    .addra(addrCredits),
+    .douta(rom_pixelCredits)
 );
 
 endmodule
