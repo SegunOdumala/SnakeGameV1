@@ -163,11 +163,11 @@ module game_top(
                 if (direction[2*i +: 2] == 2'd0) // Right
                     snakepos_x[11*i +: 11] <= (snakepos_x[11*i +: 11] < 11'd1392) ? snakepos_x[11*i +: 11] + 11'd32 : 11'd16;
                 else if (direction[2*i +: 2] == 2'd1) // Down
-                    snakepos_y[11*i +: 11] <= (snakepos_y[11*i +: 11] < 11'd848) ? snakepos_y[11*i +: 11] + 11'd32 : 11'd16;
+                    snakepos_y[11*i +: 11] <= (snakepos_y[11*i +: 11] < 11'd750) ? snakepos_y[11*i +: 11] + 11'd32 : 11'd16;
                 else if (direction[2*i +: 2] == 2'd2) // Left
                     snakepos_x[11*i +: 11] <= (snakepos_x[11*i +: 11] > 11'd16) ? snakepos_x[11*i +: 11] - 11'd32 : 11'd1392;
                 else if (direction[2*i +: 2] == 2'd3) // Up
-                    snakepos_y[11*i +: 11] <= (snakepos_y[11*i +: 11] > 11'd16) ? snakepos_y[11*i +: 11] - 11'd32 : 11'd848;
+                    snakepos_y[11*i +: 11] <= (snakepos_y[11*i +: 11] > 11'd16) ? snakepos_y[11*i +: 11] - 11'd32 : 11'd750;
             end
         end
     end

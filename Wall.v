@@ -19,7 +19,7 @@ module Wall(
     localparam MIN_X = 11'd16;   // left boundary
     localparam MAX_X = 11'd1392; // right boundary
     localparam MIN_Y = 11'd16;   // top boundary
-    localparam MAX_Y = 11'd848;  // bottom boundary
+    localparam MAX_Y = 11'd750;  // bottom boundary
 
     // Use different increments than the apple so they don't track each other
     localparam INC_X = 11'd64; 

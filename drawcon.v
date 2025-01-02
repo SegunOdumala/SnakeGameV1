@@ -67,7 +67,7 @@ reg game_end; // Single driver for game_end
                 bg_g <= 4'b1111;
                 bg_b <= 4'b0000;
             end else begin
-                if ((curr_x < 11'd16) || (curr_x > 11'd1424) || (curr_y < 11'd16) || (curr_y > 11'd880)) begin
+                if ((curr_x < 11'd16) || (curr_x > 11'd1424) || (curr_y < 11'd16) || (curr_y > 11'd780)) begin
                     bg_r <= 4'b1111;
                     bg_g <= 4'b1111;
                     bg_b <= 4'b1111;
@@ -252,4 +252,3 @@ blk_mem_gen_6 wall_inst (
 );
 
 endmodule
-

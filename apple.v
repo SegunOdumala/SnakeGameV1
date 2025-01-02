@@ -17,7 +17,7 @@ module apple(
     localparam MIN_X = 11'd16;
     localparam MAX_X = 11'd1392;
     localparam MIN_Y = 11'd16;
-    localparam MAX_Y = 11'd848;
+    localparam MAX_Y = 11'd750;
 
     localparam INC_X = 11'd32; 
     localparam INC_Y = 11'd64;
