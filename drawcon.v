@@ -32,7 +32,7 @@ parameter GAMEOVER_WIDTH = 707;
 parameter GAMEOVER_HEIGHT = 500;
 parameter WINNER_WIDTH = 789;
 parameter WINNER_HEIGHT = 450;
-parameter CREDITS_WIDTH = 500;
+parameter CREDITS_WIDTH = 317;
 parameter CREDITS_HEIGHT = 100;
 
 // Image offsets for centering
@@ -41,7 +41,7 @@ parameter GAMEOVER_Y_OFFSET = (SCREEN_HEIGHT - GAMEOVER_HEIGHT) / 2; // Centered
 parameter WINNER_X_OFFSET = (SCREEN_WIDTH - WINNER_WIDTH) / 2; // Centered X position
 parameter WINNER_Y_OFFSET = (SCREEN_HEIGHT - WINNER_HEIGHT) / 2; // Centered Y position
 // Offset for Credits image at the bottom left
-parameter CREDITS_X_OFFSET = 0; // Bottom-left corner, X = 0
+parameter CREDITS_X_OFFSET = 11'd0; // Bottom-left corner, X = 0
 parameter CREDITS_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
 
 // Registers and wires
@@ -108,6 +108,7 @@ always @(posedge clk) begin
         addrHEAD <= 0;
         addrBODY <= 0;
         addrGRASS <= 0;
+        addrCredits <= 0;
         placed <= 0;
     end else begin
         placed <= 0; // Reset placement flag for the new frame
