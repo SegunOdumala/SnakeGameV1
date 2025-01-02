@@ -45,8 +45,8 @@ parameter WINNER_Y_OFFSET = (SCREEN_HEIGHT - WINNER_HEIGHT) / 2; // Centered Y p
 // Offset for Credits image at the bottom left
 parameter CREDITS_X_OFFSET = 11'd0; // Bottom-left corner, X = 0
 parameter CREDITS_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
-parameter GAMENAME_X_OFFSET = (SCREEN_WIDTH - GAMEOVER_WIDTH) / 2; // Bottom-left corner, X = 0
-parameter GAMENAME_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
+parameter GAMENAME_X_OFFSET = (SCREEN_WIDTH - GAMENAME_WIDTH) / 2; // Bottom-left corner, X = 0
+parameter GAMENAME_Y_OFFSET = SCREEN_HEIGHT - GAMENAME_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
 reg [3:0] bg_r, bg_g, bg_b;
@@ -246,7 +246,7 @@ end
                            (curr_y - GAMENAME_Y_OFFSET + 5) * GAMENAME_WIDTH);
 
             // Fetch and render the pixel
-            if (rom_pixelCredits != 12'h000) begin // Render non-black pixels
+            if (rom_pixelGameName != 12'h000) begin // Render non-black pixels
                 blk_r <= rom_pixelGameName[11:8];
                 blk_g <= rom_pixelGameName[7:4];
                 blk_b <= rom_pixelGameName[3:0];
