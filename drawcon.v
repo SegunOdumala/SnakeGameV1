@@ -34,6 +34,8 @@ parameter WINNER_WIDTH = 789;
 parameter WINNER_HEIGHT = 450;
 parameter CREDITS_WIDTH = 317;
 parameter CREDITS_HEIGHT = 100;
+parameter GAMENAME_WIDTH = 317;
+parameter GAMENAME_HEIGHT = 100;
 
 // Image offsets for centering
 parameter GAMEOVER_X_OFFSET = (SCREEN_WIDTH - GAMEOVER_WIDTH) / 2; // Centered X position
@@ -43,7 +45,8 @@ parameter WINNER_Y_OFFSET = (SCREEN_HEIGHT - WINNER_HEIGHT) / 2; // Centered Y p
 // Offset for Credits image at the bottom left
 parameter CREDITS_X_OFFSET = 11'd0; // Bottom-left corner, X = 0
 parameter CREDITS_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
-
+parameter GAMENAME_X_OFFSET = (SCREEN_WIDTH - GAMEOVER_WIDTH) / 2; // Bottom-left corner, X = 0
+parameter GAMENAME_Y_OFFSET = SCREEN_HEIGHT - CREDITS_HEIGHT; // Bottom-left corner, Y = SCREEN_HEIGHT - CREDITS_HEIGHT
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
 reg [3:0] bg_r, bg_g, bg_b;
@@ -59,6 +62,8 @@ reg [13:0] addrWALL;
 wire [11:0] rom_pixelWALL;  // Pixel data for grass
 reg [15:0] addrCredits;
 wire [11:0] rom_pixelCredits;  // Pixel data for image at bottom left of the screen
+reg [15:0] addrGameName;
+wire [11:0] rom_pixelGameName;  // Pixel data for image at bottom left of the screen
 reg [13:0] addr_gameover, addr_winner; // Wires for image pixels
 wire [11:0] rom_pixel_gameover, rom_pixel_winner; // Wires for image pixels
 reg [5:0] i;
@@ -72,6 +77,11 @@ reg game_end; // Single driver for game_end
              bg_g <= rom_pixelCredits[7:4];
              bg_b <= rom_pixelCredits[3:0];
         end
+        if ((curr_x < 11'd1281) || (curr_x > 11'd892) || (curr_y < 11'd1) || (curr_y > 11'd101)) begin
+             bg_r <= rom_pixelGameName[11:8];
+             bg_g <= rom_pixelGameName[7:4];
+             bg_b <= rom_pixelGameName[3:0];
+        end        
         game_end = win || lose;
         if(!lose) begin
             if(win) begin
@@ -109,6 +119,7 @@ always @(posedge clk) begin
         addrBODY <= 0;
         addrGRASS <= 0;
         addrCredits <= 0;
+        addrGameName <= 0;
         placed <= 0;
     end else begin
         placed <= 0; // Reset placement flag for the new frame
@@ -210,14 +221,35 @@ end
             placed <= 1;
 
             // Dynamically calculate address for the current pixel
-            addrCredits <= ((curr_x - CREDITS_X_OFFSET) + 
-                           (curr_y - CREDITS_Y_OFFSET) * CREDITS_WIDTH);
+            addrCredits <= ((curr_x - CREDITS_X_OFFSET -  0) +  //95
+                           (curr_y - CREDITS_Y_OFFSET + 5) * CREDITS_WIDTH);
 
             // Fetch and render the pixel
             if (rom_pixelCredits != 12'h000) begin // Render non-black pixels
                 blk_r <= rom_pixelCredits[11:8];
                 blk_g <= rom_pixelCredits[7:4];
                 blk_b <= rom_pixelCredits[3:0];
+            end else begin // Render grass for black pixels
+                addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+                blk_r <= rom_pixelGRASS[11:8];
+                blk_g <= rom_pixelGRASS[7:4];
+                blk_b <= rom_pixelGRASS[3:0];
+            end
+        end
+        
+        if ((curr_x >= GAMENAME_X_OFFSET) && (curr_x < GAMENAME_X_OFFSET + GAMENAME_WIDTH) &&
+            (curr_y >= GAMENAME_Y_OFFSET) && (curr_y < GAMENAME_Y_OFFSET + GAMENAME_HEIGHT)) begin
+            placed <= 1;
+
+            // Dynamically calculate address for the current pixel
+            addrGameName <= ((curr_x - GAMENAME_X_OFFSET -  0) +  //95
+                           (curr_y - GAMENAME_Y_OFFSET + 5) * GAMENAME_WIDTH);
+
+            // Fetch and render the pixel
+            if (rom_pixelCredits != 12'h000) begin // Render non-black pixels
+                blk_r <= rom_pixelGameName[11:8];
+                blk_g <= rom_pixelGameName[7:4];
+                blk_b <= rom_pixelGameName[3:0];
             end else begin // Render grass for black pixels
                 addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
                 blk_r <= rom_pixelGRASS[11:8];
@@ -288,6 +320,12 @@ blk_mem_gen_7 credits_inst (
     .clka(clk),
     .addra(addrCredits),
     .douta(rom_pixelCredits)
+);
+
+blk_mem_gen_8 gamename_inst (
+    .clka(clk),
+    .addra(addrGameName),
+    .douta(rom_pixelGameName)
 );
 
 endmodule
