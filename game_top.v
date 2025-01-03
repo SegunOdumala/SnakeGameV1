@@ -157,7 +157,7 @@ module game_top(
                 4'b0001: if (direction[1:0] != 2'd1) direction[1:0] = 2'd3; // Turn up
                 4'b1000: if (direction[1:0] != 2'd3) direction[1:0] = 2'd1; // Turn down
             endcase
-
+ 
             // Movement logic
             for (i = 0; i < 22; i = i + 1) begin
                 if (direction[2*i +: 2] == 2'd0) // Right

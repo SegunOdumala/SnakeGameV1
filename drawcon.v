@@ -28,10 +28,10 @@ parameter MAX_SEGMENTS = 23; // Max number of snake segments (252 bits / 11 bits
 // Parameters for image sizes and screen centering
 parameter SCREEN_WIDTH = 1440;
 parameter SCREEN_HEIGHT = 900;
-parameter GAMEOVER_WIDTH = 707;
-parameter GAMEOVER_HEIGHT = 500;
-parameter WINNER_WIDTH = 789;
-parameter WINNER_HEIGHT = 450;
+parameter GAMEOVER_WIDTH = 300;
+parameter GAMEOVER_HEIGHT = 212;
+parameter WINNER_WIDTH = 300;
+parameter WINNER_HEIGHT = 171;
 parameter CREDITS_WIDTH = 317;
 parameter CREDITS_HEIGHT = 100;
 parameter GAMENAME_WIDTH = 317;
@@ -50,6 +50,7 @@ parameter GAMENAME_Y_OFFSET = SCREEN_HEIGHT - GAMENAME_HEIGHT; // Bottom-left co
 // Registers and wires
 reg [3:0] blk_r, blk_g, blk_b;
 reg [3:0] bg_r, bg_g, bg_b;
+reg [3:0] gameend_r, gameend_g, gameend_b;  // displays winner screen or gameover screen at the end
 reg [13:0] addr = 0; // Address for apple memory
 wire [11:0] rom_pixelA; // Output pixel from apple block memory
 reg [13:0] addrHEAD = 0; // Address for snake head
@@ -64,8 +65,10 @@ reg [15:0] addrCredits;
 wire [11:0] rom_pixelCredits;  // Pixel data for image at bottom left of the screen
 reg [15:0] addrGameName;
 wire [11:0] rom_pixelGameName;  // Pixel data for image at bottom left of the screen
-reg [13:0] addr_gameover, addr_winner; // Wires for image pixels
-wire [11:0] rom_pixel_gameover, rom_pixel_winner; // Wires for image pixels
+reg [15:0] addr_gameover;
+reg [15:0] addr_winner; // Wires for image pixels
+wire [11:0] rom_pixel_gameover;
+wire [11:0] rom_pixel_winner; // Wires for image pixels
 reg [5:0] i;
 reg placed;
 reg game_end; // Single driver for game_end
@@ -114,12 +117,17 @@ always @(posedge clk) begin
         blk_r <= 4'b0000;
         blk_g <= 4'b0000;
         blk_b <= 4'b0000;
+        gameend_r <= 4'b0000;
+        gameend_g <= 4'b0000;
+        gameend_b <= 4'b0000;        
         addr <= 0;
         addrHEAD <= 0;
         addrBODY <= 0;
         addrGRASS <= 0;
         addrCredits <= 0;
         addrGameName <= 0;
+        addr_gameover <= 0;
+        addr_winner <= 0;
         placed <= 0;
     end else begin
         placed <= 0; // Reset placement flag for the new frame
@@ -215,7 +223,7 @@ else begin
         end
     end
 end   
-               // Credits image rendering
+               // Credits image and game name imagem rendering
         if ((curr_x >= CREDITS_X_OFFSET) && (curr_x < CREDITS_X_OFFSET + CREDITS_WIDTH) &&
             (curr_y >= CREDITS_Y_OFFSET) && (curr_y < CREDITS_Y_OFFSET + CREDITS_HEIGHT)) begin
             placed <= 1;
@@ -257,6 +265,77 @@ end
                 blk_b <= rom_pixelGRASS[3:0];
             end
         end
+        
+        // game over and winner screen end
+
+        
+if (lose) begin
+    // If we are inside the game-over bounding box
+    if ((curr_x >= GAMEOVER_X_OFFSET) && (curr_x < GAMEOVER_X_OFFSET + GAMEOVER_WIDTH) &&
+        (curr_y >= GAMEOVER_Y_OFFSET) && (curr_y < GAMEOVER_Y_OFFSET + GAMEOVER_HEIGHT))
+    begin
+        placed <= 1; // prevent grass logic from overriding
+
+        addr_gameover <= ((curr_x - GAMEOVER_X_OFFSET)
+                        + (curr_y - GAMEOVER_Y_OFFSET) * GAMEOVER_WIDTH);
+
+        // Render non-black pixels from game-over memory
+        if (rom_pixel_gameover != 12'h000) begin
+            gameend_r <= rom_pixel_gameover[11:8];
+            gameend_g <= rom_pixel_gameover[7:4];
+            gameend_b <= rom_pixel_gameover[3:0];
+        end 
+        else begin
+            // For black pixels, fallback to grass
+            addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+            gameend_r <= rom_pixelGRASS[11:8];
+            gameend_g <= rom_pixelGRASS[7:4];
+            gameend_b <= rom_pixelGRASS[3:0];
+        end
+    end 
+    else begin
+        // *** IMPORTANT FIX *** 
+        // Outside the bounding box, force gameend_ color to zero,
+        // so we won't override the entire screen.
+        gameend_r <= 4'b0000;
+        gameend_g <= 4'b0000;
+        gameend_b <= 4'b0000;
+    end
+end
+        
+// Winner screen
+if (win) begin
+    // Check if (curr_x, curr_y) is inside the winner bounding box
+    if ((curr_x >= WINNER_X_OFFSET) && (curr_x < WINNER_X_OFFSET + WINNER_WIDTH) &&
+        (curr_y >= WINNER_Y_OFFSET) && (curr_y < WINNER_Y_OFFSET + WINNER_HEIGHT))
+    begin
+        placed <= 1;
+
+        addr_winner <= ( (curr_x - WINNER_X_OFFSET)
+                       + (curr_y - WINNER_Y_OFFSET) * WINNER_WIDTH );
+
+        // Non-black pixel from winner memory => draw it
+        if (rom_pixel_winner != 12'h000) begin
+            gameend_r <= rom_pixel_winner[11:8];
+            gameend_g <= rom_pixel_winner[7:4];
+            gameend_b <= rom_pixel_winner[3:0];
+        end else begin
+            // Fallback to grass if pixel is black
+            addrGRASS <= ((curr_x % 11'd1440) + (curr_y % 11'd900) * 11'd1440);
+            gameend_r <= rom_pixelGRASS[11:8];
+            gameend_g <= rom_pixelGRASS[7:4];
+            gameend_b <= rom_pixelGRASS[3:0];
+        end
+    end 
+    else begin
+        // *** IMPORTANT FIX ***
+        // Outside the bounding box, reset gameend color to zero
+        gameend_r <= 4'b0000;
+        gameend_g <= 4'b0000;
+        gameend_b <= 4'b0000;
+    end
+end
+
 
         // Render grass background if nothing else is placed
         if (!placed) begin
@@ -269,9 +348,12 @@ end
 end
 
 // Output assignments
-assign draw_r = (blk_r != 4'b0000) ? blk_r : bg_r;
-assign draw_g = (blk_g != 4'b0000) ? blk_g : bg_g;
-assign draw_b = (blk_b != 4'b0000) ? blk_b : bg_b;
+assign draw_r = (game_end && gameend_r != 4'b0000) ? gameend_r :
+                 (blk_r != 4'b0000) ? blk_r : bg_r;
+assign draw_g = (game_end && gameend_g != 4'b0000) ? gameend_g :
+                 (blk_g != 4'b0000) ? blk_g : bg_g;
+assign draw_b = (game_end && gameend_b != 4'b0000) ? gameend_b :
+                 (blk_b != 4'b0000) ? blk_b : bg_b;
 
 // Memory instances
 blk_mem_gen_1 apple_inst (
