@@ -1,0 +1,167 @@
+`timescale 1ns / 1ps
+
+module collisioncon_tb();
+
+//--------------------------------------
+// 1) Signals for collisioncon
+//--------------------------------------
+reg         clk;
+reg         reset;
+
+reg [10:0]  applepos_x;
+reg [10:0]  applepos_y;
+
+reg [10:0]  wallpos_x;
+reg [10:0]  wallpos_y;
+
+reg [252:0] snakepos_x;
+reg [252:0] snakepos_y;
+reg [5:0]   length;
+
+reg [10:0]  curr_x;
+reg [10:0]  curr_y;
+
+wire [5:0]  points;
+wire        lose;
+wire        win;
+
+//--------------------------------------
+// 2) Instantiate collisioncon
+collisioncon dut (
+    .clk        (clk),
+    .reset      (reset),
+    .applepos_x (applepos_x),
+    .applepos_y (applepos_y),
+    .wallpos_x  (wallpos_x),
+    .wallpos_y  (wallpos_y),
+    .snakepos_x (snakepos_x),
+    .snakepos_y (snakepos_y),
+    .length     (length),
+    .curr_x     (curr_x),
+    .curr_y     (curr_y),
+    .points     (points),
+    .lose       (lose),
+    .win        (win)
+);
+
+//--------------------------------------
+// 3) Clock Generation
+//--------------------------------------
+initial begin
+    clk = 0;
+    forever #5 clk = ~clk;  // 10 ns period
+end
+
+//--------------------------------------
+// 4) Print Task for Debug
+//--------------------------------------
+task print_status;
+begin
+    $display("Time=%0t | points=%0d | lose=%b | win=%b | snake_head=(%0d,%0d)",
+             $time, points, lose, win, snakepos_x[10:0], snakepos_y[10:0]);
+end
+endtask
+
+//--------------------------------------
+// 5) Test Sequence (Named Block)
+//--------------------------------------
+initial begin : test_sequence
+
+    // Optional: Dump waveforms for gtkwave/other
+    $dumpfile("collisioncon_tb.vcd");
+    $dumpvars(0, collisioncon_tb);
+
+    // Initialize
+    reset      = 1;
+    applepos_x = 0;
+    applepos_y = 0;
+    wallpos_x  = 0;
+    wallpos_y  = 0;
+    snakepos_x = 0;
+    snakepos_y = 0;
+    length     = 1;
+    curr_x     = 0;
+    curr_y     = 0;
+
+    // Hold reset for some cycles
+    #20;
+    reset = 0;
+    $display("=== Starting Test ===");
+
+    //----------------------------------------------------------------
+    // Scenario 1: Apple collision
+    //----------------------------------------------------------------
+    $display("=== SCENARIO 1: Apple Collision ===");
+    // Starting snake head at (100,100), Apple at (100,100).
+    snakepos_x[10:0] = 11'd100;
+    snakepos_y[10:0] = 11'd100;
+    applepos_x       = 11'd100;
+    applepos_y       = 11'd100;
+    length           = 1; // minimal snake length
+
+    // Wait a cycle -> points should increment from 2 to 3
+    #10;
+    print_status();
+
+    // Keep snake head in same place to cause repeated collisions
+    // This should increment 'points' each time
+    repeat(6) begin
+        #10;
+        print_status();
+        if (win) begin
+            $display("=== Reached winning condition (points==8) ===");
+            disable test_sequence; // Exit the named block
+        end
+    end
+
+    //----------------------------------------------------------------
+    // Scenario 2: Wall collision
+    //----------------------------------------------------------------
+    $display("=== SCENARIO 2: Wall Collision ===");
+    // Move apple away so no apple collisions now
+    applepos_x = 11'd300;
+    applepos_y = 11'd300;
+
+    // Put wall at (100,100) => same coords as snake head
+    wallpos_x  = 11'd100;
+    wallpos_y  = 11'd100;
+
+    // Each cycle => collision => decrement points
+    repeat(5) begin
+        #10;
+        print_status();
+        if (lose) begin
+            $display("=== Lost due to wall collision reducing points to 0 ===");
+            disable test_sequence;
+        end
+    end
+
+    //----------------------------------------------------------------
+    // Scenario 3: Snake body collision
+    //----------------------------------------------------------------
+    $display("=== SCENARIO 3: Snake Body Collision ===");
+    // length=3 => place 2 body segments behind the head
+    // Let all be at (100,100) => immediate body collision
+    length = 3;
+    snakepos_x[10:0]   = 11'd100; 
+    snakepos_y[10:0]   = 11'd100;
+    // Body segment 1
+    snakepos_x[21:11]  = 11'd100; 
+    snakepos_y[21:11]  = 11'd100;
+    // Body segment 2 not crucial
+
+    #10;
+    print_status();
+    if (lose) begin
+        $display("=== Lost due to snake body collision ===");
+        disable test_sequence;
+    end
+
+    //----------------------------------------------------------------
+    // End of test
+    #50;
+    $display("=== All tests completed ===");
+    $finish;
+end
+
+endmodule
